@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Todo List</title>
+</head>
+<body>
+    <h1>Todo List</h1>
+    <ul id="todo-list">
+        <!-- Todo items will be added here -->
+    </ul>
+    <input type="text" id="todo-input" placeholder="Enter a todo item">
+    <button id="add-button">Add Todo</button>
+
+    <!-- Include Socket.IO -->
+    <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.min.js"></script>
+    <script>
+        // Establish a WebSocket connection
+        var socket = io();
+
+        // Handle button click event
+        document.getElementById('add-button').onclick = function() {
+            var description = document.getElementById('todo-input').value;
+            // Use the execute_py API with the following Python code
+            let code = `
+todo_description = data['description']
+# Generate JavaScript code to add the todo item to the DOM
+js_code = f"""
+var ul = document.getElementById('todo-list');
+var li = document.createElement('li');
+li.textContent = {repr(todo_description)};
+ul.appendChild(li);
+"""
+# Send the JavaScript code back to the client
+emit('execute_js', {'code': js_code})
+# Add the todo to the list of todos
+TODOS.append(todo_description)
+            `;
+
+            socket.emit('execute_py', {'code': code, 'description': description});
+
+            document.getElementById('todo-input').value = '';
+        };
+
+        // On page load, execute Python code on server to get the existing todos
+        let init_code = `
+# For each todo in the list, generate JavaScript code to add it to the DOM
+for todo in TODOS:
+    js_code = f"""
+var ul = document.getElementById('todo-list');
+var li = document.createElement('li');
+li.textContent = {repr(todo)};
+ul.appendChild(li);
+"""
+    emit('execute_js', {'code': js_code})
+            `;
+
+        socket.emit('execute_py', {'code': init_code});
+
+        // Receive JavaScript code from the server and execute it
+        socket.on('execute_js', function(data) {
+            eval(data.code);
+        });
+    </script>
+</body>
+</html>
